@@ -1,0 +1,815 @@
+#client_app.py
+import tkinter as tk
+from tkinter import ttk
+import customtkinter as ctk
+from datetime import datetime
+import time
+import requests
+import threading
+from kafka import KafkaProducer, KafkaConsumer
+import json
+
+producer = KafkaProducer(
+    bootstrap_servers=['localhost:9092'],
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+
+consumer = KafkaConsumer(
+    'queue-updated',
+    bootstrap_servers=['localhost:9092'],
+    value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+    group_id='client-notification-group'
+)
+username_login_entry = None
+password_login_entry = None
+
+username_register_entry = None
+password_register_entry = None
+name_register_entry = None
+# Initialize the app
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
+
+app = ctk.CTk()
+app.geometry("700x700")
+app.title("✂️ Simple Barber Shop App")
+
+# Global variables
+current_user = None
+current_frame = None
+frames = {}
+
+# Sample data (to replace API calls)
+sample_barbers = [
+    {"barber_id": "B001", "name": "John Smith"},
+    {"barber_id": "B002", "name": "Mike Johnson"},
+    {"barber_id": "B003", "name": "Sarah Williams"}
+]
+
+sample_services = [
+    {"id": "S001", "name": "Classic Haircut", "price": 25},
+    {"id": "S002", "name": "Beard Trim", "price": 15},
+    {"id": "S004", "name": "Hair Coloring", "price": 50}
+]
+
+sample_appointments = []
+sample_queue = []
+sample_users = [{"username": "test", "password": "test", "name": "Test User", "id": "U001"}]
+sample_notifications = [
+    {"id": 1, "user_id": "U001", "title": "Welcome!", "message": "Welcome to our Barber Shop App!", "date": "2025-04-27", "read": False},
+    {"id": 2, "user_id": "U001", "title": "Special Discount", "message": "Get 20% off on your next haircut!", "date": "2025-04-27", "read": False}
+]
+
+def listen_to_queue_updates():
+    for message in consumer:
+        event = message.value
+        if event["event_type"] == "queue_status_changed":
+            client_id = event["data"]["client_id"]
+            queue_id = event["data"]["queue_id"]
+            status = event["data"]["status"]
+            position = event["data"]["position"]
+            estimated_wait = event["data"]["estimated_wait"]
+
+            # Create new notification
+            new_notification = {
+                "id": str(len(sample_notifications) + 1),
+                "user_id": client_id,
+                "title": "Queue Status Update",
+                "message": f"Your queue status is '{status.upper()}'. Position: {position}, Estimated wait: {estimated_wait} mins.",
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "read": False
+            }
+            sample_notifications.append(new_notification)
+
+            # Refresh if current user matches
+            if current_user and (current_user.get("client_id") == client_id or current_user.get("id") == client_id):
+                refresh_notifications()
+
+# Start the listener in a background thread
+listener_thread = threading.Thread(target=listen_to_queue_updates, daemon=True)
+listener_thread.start()
+# Function to switch between frames
+def show_frame(frame_name):
+    global current_frame
+    if current_frame:
+        frames[current_frame].pack_forget()
+    
+    frames[frame_name].pack(fill="both", expand=True)
+    current_frame = frame_name
+    
+    # Special handling for some frames
+    if frame_name == "dashboard" and current_user:
+        welcome_label.configure(text=f"Welcome, {current_user['name']}!")
+    elif frame_name == "notifications" and current_user:
+        refresh_notifications()
+
+# Create all frames
+def create_frames():
+    frame_list = ["login", "register", "dashboard", "booking", "queue", "appointments", "notifications"]
+    
+    for name in frame_list:
+        frames[name] = ctk.CTkFrame(app)
+        frames[name].pack_forget()
+    
+    setup_login_frame()
+    setup_register_frame()
+    setup_dashboard_frame()
+    setup_booking_frame()
+    setup_queue_frame()
+    setup_appointments_frame()
+    setup_notifications_frame()
+
+# Login frame
+def setup_login_frame():
+    global username_login_entry, password_login_entry
+
+    frame = frames["login"]
+
+    # Title
+    title = ctk.CTkLabel(frame, text="✂️ Barber Shop Login", font=ctk.CTkFont(size=24, weight="bold"))
+    title.pack(pady=(50, 20))
+
+    # Username
+    username_label = ctk.CTkLabel(frame, text="Username:")
+    username_label.pack(pady=(10, 5))
+    username_login_entry = ctk.CTkEntry(frame, width=300)
+    username_login_entry.pack(pady=(0, 10))
+
+    # Password
+    password_label = ctk.CTkLabel(frame, text="Password:")
+    password_label.pack(pady=(10, 5))
+    password_login_entry = ctk.CTkEntry(frame, width=300, show="*")
+    password_login_entry.pack(pady=(0, 20))
+
+    # Status message
+    global login_status
+    login_status = ctk.CTkLabel(frame, text="", text_color="red")
+    login_status.pack(pady=(0, 10))
+
+    # Login button
+    def login():
+        username = username_login_entry.get()
+        password = password_login_entry.get()
+
+        login_status.configure(text="Logging in...", text_color="white")
+
+        try:
+            response = requests.post(
+                "http://localhost:8001/login/",
+                json={"username": username, "password": password}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                global current_user
+                current_user = data["client"]
+                current_user["client_id"] = data["client_id"]
+                login_status.configure(text="Login successful!", text_color="green")
+                show_frame("dashboard")
+            else:
+                error_detail = response.json().get("detail", "Invalid username or password")
+                login_status.configure(text=f"Error: {error_detail}", text_color="red")
+        except Exception as e:
+            login_status.configure(text=f"Server error: {str(e)}", text_color="red")
+
+    login_button = ctk.CTkButton(frame, text="Login", command=login, width=300)
+    login_button.pack(pady=(10, 10))
+
+    # Register link
+    def go_to_register():
+        show_frame("register")
+
+    register_link = ctk.CTkButton(frame, text="Don't have an account? Register", 
+                                  command=go_to_register, fg_color="transparent", hover=False)
+    register_link.pack(pady=(10, 0))
+
+    
+    
+
+# Register frame
+def setup_register_frame():
+    global username_register_entry, password_register_entry, name_register_entry
+
+    frame = frames["register"]
+
+    title = ctk.CTkLabel(frame, text="✂️ Create an Account", font=ctk.CTkFont(size=24, weight="bold"))
+    title.pack(pady=(30, 20))
+
+    username_label = ctk.CTkLabel(frame, text="Username:")
+    username_label.pack(pady=(10, 5))
+    username_register_entry = ctk.CTkEntry(frame, width=300)
+    username_register_entry.pack(pady=(0, 5))
+
+    password_label = ctk.CTkLabel(frame, text="Password:")
+    password_label.pack(pady=(5, 5))
+    password_register_entry = ctk.CTkEntry(frame, width=300, show="*")
+    password_register_entry.pack(pady=(0, 5))
+
+    name_label = ctk.CTkLabel(frame, text="Full Name:")
+    name_label.pack(pady=(5, 5))
+    name_register_entry = ctk.CTkEntry(frame, width=300)
+    name_register_entry.pack(pady=(0, 5))
+
+    global register_status
+    register_status = ctk.CTkLabel(frame, text="", text_color="red")
+    register_status.pack(pady=(10, 10))
+
+    def register():
+        username = username_register_entry.get()
+        password = password_register_entry.get()
+        name = name_register_entry.get()
+
+        if not username or not password or not name:
+            register_status.configure(text="Please fill all fields", text_color="red")
+            return
+
+        try:
+            response = requests.post(
+                "http://localhost:8001/register/",
+                json={
+                    "username": username,
+                    "password": password,
+                    "name": name,
+                    "email": f"{username}@example.com",
+                    "phone": "09123456789"
+                }
+            )
+            if response.status_code == 200:
+                data = response.json()
+                register_status.configure(
+                    text=f"Registration successful! Logging you in...", 
+                    text_color="green"
+                )
+
+                # Auto-login after registration
+                try:
+                    login_response = requests.post(
+                        "http://localhost:8001/login/",
+                        json={
+                            "username": username,
+                            "password": password
+                        }
+                    )
+                    if login_response.status_code == 200:
+                        login_data = login_response.json()
+                        global current_user
+                        current_user = login_data["client"]
+                        current_user["client_id"] = login_data["client_id"]
+                        show_frame("dashboard")  # Go to dashboard directly
+                    else:
+                        register_status.configure(
+                            text="Registration succeeded but auto-login failed. Please login manually.",
+                            text_color="orange"
+                        )
+                except Exception as e:
+                    register_status.configure(
+                        text=f"Auto-login error: {str(e)}", 
+                        text_color="red"
+                    )
+
+            else:
+                register_status.configure(
+                    text=f"Error: {response.json().get('detail', 'Unknown')}", 
+                    text_color="red"
+                )
+
+        except Exception as e:
+            register_status.configure(text=f"Server error: {str(e)}", text_color="red")
+
+
+    register_button = ctk.CTkButton(frame, text="Register", command=register, width=300)
+    register_button.pack(pady=(10, 10))
+
+    def go_to_login():
+        show_frame("login")
+
+    login_link = ctk.CTkButton(frame, text="Already have an account? Login", 
+                               command=go_to_login, fg_color="transparent", hover=False)
+    login_link.pack(pady=(10, 0))
+
+
+
+
+# Dashboard frame
+def setup_dashboard_frame():
+    frame = frames["dashboard"]
+    
+    # Welcome message
+    global welcome_label
+    welcome_label = ctk.CTkLabel(frame, text="Welcome!", font=ctk.CTkFont(size=24, weight="bold"))
+    welcome_label.pack(pady=(50, 30))
+    
+    # Button frame
+    button_frame = ctk.CTkFrame(frame, fg_color="transparent")
+    button_frame.pack(pady=20)
+    
+    # Booking button
+    def go_to_booking():
+        show_frame("booking")
+    
+    booking_button = ctk.CTkButton(button_frame, text="Book Appointment", command=go_to_booking, width=200)
+    booking_button.grid(row=0, column=0, padx=10, pady=10)
+    
+    # Queue button
+    def go_to_queue():
+        show_frame("queue")
+    
+    queue_button = ctk.CTkButton(button_frame, text="Join Queue", command=go_to_queue, width=200)
+    queue_button.grid(row=0, column=1, padx=10, pady=10)
+    
+    # View appointments button
+    def go_to_appointments():
+        show_frame("appointments")
+    
+    appointments_button = ctk.CTkButton(button_frame, text="My Appointments", command=go_to_appointments, width=200)
+    appointments_button.grid(row=1, column=0, padx=10, pady=10)
+    
+    # Notifications button
+    def go_to_notifications():
+        show_frame("notifications")
+    
+    notifications_button = ctk.CTkButton(button_frame, text="Notifications", command=go_to_notifications, width=200)
+    notifications_button.grid(row=1, column=1, padx=10, pady=10)
+    
+    # Logout button
+    def logout():
+        global current_user
+        current_user = None
+        show_frame("login")
+    
+    logout_button = ctk.CTkButton(frame, text="Logout", command=logout, 
+                                 fg_color="red", hover_color="darkred", width=200)
+    logout_button.pack(pady=(30, 0))
+
+# Booking frame
+def setup_booking_frame():
+    frame = frames["booking"]
+    
+    # Title
+    title = ctk.CTkLabel(frame, text="Book an Appointment", font=ctk.CTkFont(size=24, weight="bold"))
+    title.pack(pady=(30, 20))
+    
+    # Barber selection
+    barber_label = ctk.CTkLabel(frame, text="Select Barber:")
+    barber_label.pack(pady=(10, 5))
+    barber_var = tk.StringVar()
+    barber_names = [barber["name"] for barber in sample_barbers]
+    barber_dropdown = ctk.CTkOptionMenu(frame, variable=barber_var, values=barber_names, width=300)
+    barber_dropdown.pack(pady=(0, 10))
+    if barber_names:
+        barber_dropdown.set(barber_names[0])
+    
+    # Service selection
+    service_label = ctk.CTkLabel(frame, text="Select Service:")
+    service_label.pack(pady=(10, 5))
+    service_var = tk.StringVar()
+    service_names = [f"{service['name']} (${service['price']})" for service in sample_services]
+    service_dropdown = ctk.CTkOptionMenu(frame, variable=service_var, values=service_names, width=300)
+    service_dropdown.pack(pady=(0, 10))
+    if service_names:
+        service_dropdown.set(service_names[0])
+    
+    # Date selection
+    date_label = ctk.CTkLabel(frame, text="Date (YYYY-MM-DD):")
+    date_label.pack(pady=(10, 5))
+    date_entry = ctk.CTkEntry(frame, width=300)
+    date_entry.pack(pady=(0, 10))
+    date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+    
+    # Time selection
+    time_label = ctk.CTkLabel(frame, text="Time (HH:MM):")
+    time_label.pack(pady=(10, 5))
+    time_entry = ctk.CTkEntry(frame, width=300)
+    time_entry.pack(pady=(0, 10))
+    time_entry.insert(0, "09:00")
+    
+    # Status message
+    status = ctk.CTkLabel(frame, text="", text_color="green")
+    status.pack(pady=(5, 10))
+    
+    # Book button
+    def book_appointment():
+        if not current_user:
+            status.configure(text="Please login first", text_color="red")
+            return
+
+        date = date_entry.get()
+        time_val = time_entry.get()
+        barber_name = barber_var.get()
+        service_name = service_var.get().split(" (")[0]  # Extract service name only
+
+        # Find barber and service by name
+        barber = next((b for b in sample_barbers if b["name"] == barber_name), None)
+        service = next((s for s in sample_services if s["name"] == service_name), None)
+
+        if not barber or not service:
+            status.configure(text="Invalid barber or service selection", text_color="red")
+            return
+
+        user_id = current_user.get("id") or current_user.get("client_id")
+
+        try:
+            # 🚀 Now send correct barber_id (string!) and service_type (string!)
+            payload = {
+                "client_id": user_id,
+                "barber_id": barber["barber_id"],    # <-- string like "B001"
+                "service_type": service["id"],        # <-- string like "S001"
+                "booking_date": date,
+                "booking_time": time_val
+            }
+            response = requests.post("http://localhost:8000/booking/", json=payload)
+
+            if response.status_code == 200:
+                data = response.json()
+                appointment_id = data.get("booking_id", "Unknown")
+
+                # Kafka notification (optional)
+                producer.send('notification-updated', {
+                    "event_type": "appointment_booked",
+                    "data": {
+                        "client_id": user_id,
+                        "appointment_id": appointment_id,
+                        "barber_name": barber_name,
+                        "service_name": service_name,
+                        "datetime": f"{date} {time_val}"
+                    }
+                })
+                producer.flush()
+
+                status.configure(text=f"Appointment booked! ID: {appointment_id}", text_color="green")
+                print(f"[INFO] Appointment booked - ID: {appointment_id}, User: {current_user['name']}, Barber: {barber_name}, Service: {service_name}, DateTime: {date} {time_val}")
+            
+            else:
+                status.configure(text=f"Booking failed: {response.json().get('detail', 'Unknown error')}", text_color="red")
+        
+        except Exception as e:
+            status.configure(text=f"Server error: {e}", text_color="red")
+
+
+    book_button = ctk.CTkButton(frame, text="Book Appointment", command=book_appointment, width=300)
+    book_button.pack(pady=(0, 10))
+    
+    # Back button
+    def go_back():
+        show_frame("dashboard")
+    
+    back_button = ctk.CTkButton(frame, text="Back to Dashboard", command=go_back, fg_color="transparent")
+    back_button.pack(pady=(10, 0))
+
+# Queue frame
+def setup_queue_frame():
+    frame = frames["queue"]
+
+    # Title
+    title = ctk.CTkLabel(frame, text="Join the Queue", font=ctk.CTkFont(size=24, weight="bold"))
+    title.pack(pady=(30, 20))
+
+    # Current queue status
+    queue_status_label = ctk.CTkLabel(frame, text="Current Queue Status:", font=ctk.CTkFont(size=16))
+    queue_status_label.pack(pady=(10, 5))
+
+    queue_count = ctk.CTkLabel(frame, text=f"People in queue: {len(sample_queue)}")
+    queue_count.pack(pady=(0, 20))
+
+    # Barber selection
+    barber_label = ctk.CTkLabel(frame, text="Select Barber (Optional):")
+    barber_label.pack(pady=(10, 5))
+    barber_var = tk.StringVar(value="Any Available")
+    barber_names = ["Any Available"] + [barber["name"] for barber in sample_barbers]
+    barber_dropdown = ctk.CTkOptionMenu(frame, variable=barber_var, values=barber_names, width=300)
+    barber_dropdown.pack(pady=(0, 10))
+
+    # Service selection
+    service_label = ctk.CTkLabel(frame, text="Select Service:")
+    service_label.pack(pady=(10, 5))
+    service_var = tk.StringVar()
+    service_names = [service["name"] for service in sample_services]
+    service_dropdown = ctk.CTkOptionMenu(frame, variable=service_var, values=service_names, width=300)
+    service_dropdown.pack(pady=(0, 10))
+    if service_names:
+        service_dropdown.set(service_names[0])
+
+    # Status message
+    status = ctk.CTkLabel(frame, text="", text_color="green")
+    status.pack(pady=(10, 10))
+
+    # Join queue button
+    def join_queue():
+        if not current_user:
+            status.configure(text="Please login first", text_color="red")
+            return
+
+        barber_name = barber_var.get()
+        service_name = service_var.get()
+
+        # Check if user is already in queue
+        if any(q["user_id"] == current_user["client_id"] for q in sample_queue):
+            status.configure(text="You are already in the queue", text_color="red")
+            return
+
+        # Add to queue (local memory)
+        queue_id = f"Q{len(sample_queue) + 1:03d}"
+        queue_entry = {
+            "id": queue_id,
+            "user_id": current_user["client_id"],
+            "user_name": current_user["name"],
+            "barber_preference": None if barber_name == "Any Available" else barber_name,
+            "service": service_name,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "status": "Waiting"
+        }
+
+        sample_queue.append(queue_entry)
+
+        # Send Kafka Event (very important)
+        producer.send('queue-updated', {
+            "event_type": "queue_status_changed",
+            "data": {
+                "client_id": current_user["client_id"],
+                "queue_id": queue_id,
+                "status": "waiting",
+                "position": len(sample_queue),
+                "estimated_wait": len(sample_queue) * 30
+            }
+        })
+        producer.flush()
+
+        queue_count.configure(text=f"People in queue: {len(sample_queue)}")
+        status.configure(text=f"Added to queue! Your position: {len(sample_queue)}", text_color="green")
+
+
+    queue_button = ctk.CTkButton(frame, text="Join Queue", command=join_queue, width=300)
+    queue_button.pack(pady=(0, 10))
+
+    # Current queue display
+    queue_frame = ctk.CTkFrame(frame)
+    queue_frame.pack(pady=10, fill="both", expand=True, padx=20)
+
+    queue_list = ctk.CTkTextbox(queue_frame, height=100)
+    queue_list.pack(fill="both", expand=True, padx=5, pady=5)
+
+    def update_queue_display():
+        queue_list.delete("1.0", tk.END)
+        if not sample_queue:
+            queue_list.insert("1.0", "Queue is currently empty")
+            return
+
+        for i, q in enumerate(sample_queue):
+            queue_list.insert(tk.END, f"{i+1}. {q['user_name']} - {q['user_id']}\n")
+
+    update_queue_display()
+
+    # Refresh button
+    refresh_button = ctk.CTkButton(frame, text="Refresh Queue", command=update_queue_display, width=200)
+    refresh_button.pack(pady=(10, 0))
+
+    # Back button
+    def go_back():
+        show_frame("dashboard")
+
+    back_button = ctk.CTkButton(frame, text="Back to Dashboard", command=go_back, fg_color="transparent")
+    back_button.pack(pady=(10, 20))
+
+
+
+# Appointments frame
+def setup_appointments_frame():
+    frame = frames["appointments"]
+    
+    # Title
+    title = ctk.CTkLabel(frame, text="My Appointments", font=ctk.CTkFont(size=24, weight="bold"))
+    title.pack(pady=(30, 20))
+    
+    # Create appointment list
+    table_frame = ttk.Frame(frame)
+    table_frame.pack(pady=10, fill="both", expand=True, padx=20)
+    
+    columns = ("ID", "Barber", "Service", "Date & Time", "Status")
+    appointments_table = ttk.Treeview(table_frame, columns=columns, show="headings")
+    
+    for col in columns:
+        appointments_table.heading(col, text=col)
+        appointments_table.column(col, anchor="center")
+    
+    appointments_table.pack(fill="both", expand=True)
+    
+    # Function to refresh appointments
+    def refresh_appointments():
+        for row in appointments_table.get_children():
+            appointments_table.delete(row)
+        
+        if not current_user:
+            return
+        
+        # Get user_id safely (id or client_id)
+        user_id = current_user.get("id") or current_user.get("client_id")
+        
+        user_appointments = [a for a in sample_appointments if a["user_id"] == user_id]
+        
+        if not user_appointments:
+            appointments_table.insert("", "end", values=("No appointments", "", "", "", ""))
+            return
+        
+        for appointment in user_appointments:
+            appointments_table.insert("", "end", values=(
+                appointment["id"],
+                appointment["barber_name"],
+                appointment["service_name"],
+                appointment["datetime"],
+                appointment["status"]
+            ))
+    
+    # Cancel button
+    def cancel_appointment():
+        selected = appointments_table.selection()
+        if not selected:
+            return
+
+        item = appointments_table.item(selected[0])
+        appointment_id = item["values"][0]
+
+        if appointment_id == "No appointments":
+            return
+
+        # Find and remove appointment
+        for i, appointment in enumerate(sample_appointments):
+            if appointment["id"] == appointment_id:
+                # Add a notification about cancellation
+                notification_id = len(sample_notifications) + 1
+
+                # Get user_id safely (id or client_id)
+                user_id = current_user.get("id") or current_user.get("client_id")
+
+                notification = {
+                    "id": notification_id,
+                    "user_id": user_id,
+                    "title": "Appointment Cancelled",
+                    "message": f"Your appointment ({appointment_id}) with {appointment['barber_name']} has been cancelled.",
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "read": False
+                }
+                sample_notifications.append(notification)
+
+                # REMOVE the appointment
+                del sample_appointments[i]
+                break
+
+        refresh_appointments()
+    
+
+
+    
+    cancel_button = ctk.CTkButton(frame, text="Cancel Selected Appointment", 
+                                  command=cancel_appointment, fg_color="red", 
+                                  hover_color="darkred", width=250)
+    cancel_button.pack(pady=(10, 0))
+    
+    refresh_button = ctk.CTkButton(frame, text="Refresh", command=refresh_appointments, width=200)
+    refresh_button.pack(pady=(10, 0))
+    
+    # Back button
+    def go_back():
+        show_frame("dashboard")
+    
+    back_button = ctk.CTkButton(frame, text="Back to Dashboard", command=go_back, fg_color="transparent")
+    back_button.pack(pady=(10, 20))
+
+    # Initial Load
+    refresh_appointments()
+
+# Notifications frame
+def setup_notifications_frame():
+    frame = frames["notifications"]
+    
+    # Title
+    title = ctk.CTkLabel(frame, text="My Notifications", font=ctk.CTkFont(size=24, weight="bold"))
+    title.pack(pady=(30, 20))
+    
+    # Create notifications list
+    table_frame = ttk.Frame(frame)
+    table_frame.pack(pady=10, fill="both", expand=True, padx=20)
+    
+    columns = ("ID", "Title", "Message", "Date", "Status")
+    global notifications_table
+    notifications_table = ttk.Treeview(table_frame, columns=columns, show="headings")
+    
+    # Configure column headings and widths
+    notifications_table.heading("ID", text="ID")
+    notifications_table.column("ID", width=50, anchor="center")
+    
+    notifications_table.heading("Title", text="Title")
+    notifications_table.column("Title", width=100, anchor="w")
+    
+    notifications_table.heading("Message", text="Message")
+    notifications_table.column("Message", width=300, anchor="w")
+    
+    notifications_table.heading("Date", text="Date")
+    notifications_table.column("Date", width=100, anchor="center")
+    
+    notifications_table.heading("Status", text="Status")
+    notifications_table.column("Status", width=80, anchor="center")
+    
+    notifications_table.pack(fill="both", expand=True)
+    
+    # Add scrollbar
+    scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=notifications_table.yview)
+    notifications_table.configure(yscroll=scrollbar.set)
+    scrollbar.pack(side="right", fill="y")
+    
+    # Mark as read button
+    def mark_as_read():
+        if not current_user:
+            return
+        
+        selected = notifications_table.selection()
+        if not selected:
+            return
+        
+        # Get user_id safely
+        user_id = current_user.get("id") or current_user.get("client_id")
+        
+        for item_id in selected:
+            item = notifications_table.item(item_id)
+            notification_id = item["values"][0]
+            
+            # Find and update notification
+            for i, notification in enumerate(sample_notifications):
+                if notification["id"] == notification_id and notification["user_id"] == user_id:
+                    sample_notifications[i]["read"] = True
+                    break
+        
+        refresh_notifications()
+    
+    buttons_frame = ctk.CTkFrame(frame, fg_color="transparent")
+    buttons_frame.pack(pady=10)
+    
+    mark_read_button = ctk.CTkButton(buttons_frame, text="Mark as Read", 
+                                     command=mark_as_read, width=200)
+    mark_read_button.grid(row=0, column=0, padx=10)
+    
+    # Mark all as read button
+    def mark_all_as_read():
+        if not current_user:
+            return
+        
+        # Get user_id safely
+        user_id = current_user.get("id") or current_user.get("client_id")
+        
+        for i, notification in enumerate(sample_notifications):
+            if notification["user_id"] == user_id:
+                sample_notifications[i]["read"] = True
+        
+        refresh_notifications()
+    
+    mark_all_button = ctk.CTkButton(buttons_frame, text="Mark All as Read", 
+                                    command=mark_all_as_read, width=200)
+    mark_all_button.grid(row=0, column=1, padx=10)
+    
+    # Back button
+    def go_back():
+        show_frame("dashboard")
+    
+    back_button = ctk.CTkButton(frame, text="Back to Dashboard", command=go_back, fg_color="transparent")
+    back_button.pack(pady=(10, 20))
+
+    # Initial refresh
+    refresh_notifications()
+
+# 🔥 Updated refresh_notifications()
+def refresh_notifications():
+    if not current_user or 'notifications_table' not in globals():
+        return
+        
+    # Clear existing items
+    for row in notifications_table.get_children():
+        notifications_table.delete(row)
+    
+    # Get user_id safely
+    user_id = current_user.get("id") or current_user.get("client_id")
+    
+    # Get user notifications
+    user_notifications = [n for n in sample_notifications if n["user_id"] == user_id]
+    
+    if not user_notifications:
+        notifications_table.insert("", "end", values=("", "No notifications", "", "", ""))
+        return
+    
+    # Sort by unread first, then latest first
+    user_notifications.sort(key=lambda x: (x["read"], -int(x["id"])))
+    
+    for notification in user_notifications:
+        status_text = "Read" if notification["read"] else "Unread"
+        notifications_table.insert("", "end", values=(
+            notification["id"],
+            notification["title"],
+            notification["message"],
+            notification["date"],
+            status_text
+        ))
+
+
+# Create all frames and start with login
+create_frames()
+show_frame("login")
+
+# Start the app
+app.mainloop()
