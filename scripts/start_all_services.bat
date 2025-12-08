@@ -18,42 +18,42 @@ echo.
 
 REM Start services in separate windows
 echo Starting Booking Service (Port 8000)...
-start "Booking Service" cmd /k "cd /d %~dp0 && python booking_service.py"
+start "Booking Service" cmd /k "cd /d %~dp0\.. && python services/booking_service.py"
 
 timeout /t 2 /nobreak >nul
 
 echo Starting Client Service (Port 8001)...
-start "Client Service" cmd /k "cd /d %~dp0 && python client_service.py"
+start "Client Service" cmd /k "cd /d %~dp0\.. && python services/client_service.py"
 
 timeout /t 2 /nobreak >nul
 
 echo Starting Feedback Service (Port 8002)...
-start "Feedback Service" cmd /k "cd /d %~dp0 && python feedback_service.py"
+start "Feedback Service" cmd /k "cd /d %~dp0\.. && python services/feedback_service.py"
 
 timeout /t 2 /nobreak >nul
 
 echo Starting Notification Service (Port 8003)...
-start "Notification Service" cmd /k "cd /d %~dp0 && python notification_service.py"
+start "Notification Service" cmd /k "cd /d %~dp0\.. && python services/notification_service.py"
 
 timeout /t 2 /nobreak >nul
 
 echo Starting Barber Service (Port 8004)...
-start "Barber Service" cmd /k "cd /d %~dp0 && python barber_service.py"
+start "Barber Service" cmd /k "cd /d %~dp0\.. && python services/barber_service.py"
 
 timeout /t 2 /nobreak >nul
 
 echo Starting Admin Service (Port 8005)...
-start "Admin Service" cmd /k "cd /d %~dp0 && python admin_service.py"
+start "Admin Service" cmd /k "cd /d %~dp0\.. && python services/admin_service.py"
 
 timeout /t 2 /nobreak >nul
 
 echo Starting Analytics Service (Port 8006)...
-start "Analytics Service" cmd /k "cd /d %~dp0 && python analytics_service.py"
+start "Analytics Service" cmd /k "cd /d %~dp0\.. && python services/analytics_service.py"
 
 timeout /t 2 /nobreak >nul
 
 echo Starting Queue Service...
-start "Queue Service" cmd /k "cd /d %~dp0 && python queue_service.py"
+start "Queue Service" cmd /k "cd /d %~dp0\.. && python services/queue_service.py"
 
 timeout /t 3 /nobreak >nul
 
@@ -73,10 +73,10 @@ echo   - Analytics Service:  http://localhost:8006
 echo   - Queue Service:       (Background process)
 echo.
 echo To start the client application:
-echo   python client_app.py
+echo   python gui/client_app.py
 echo.
 echo To start the admin dashboard:
-echo   python admin_dashboard.py
+echo   python gui/admin_dashboard.py
 echo.
 echo Press any key to exit this window...
 pause >nul
