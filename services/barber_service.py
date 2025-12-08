@@ -96,8 +96,8 @@ def create_kafka_producer():
             if attempt < max_retries - 1:
                 time.sleep(2)
             else:
-                logger.error("Failed to connect to Kafka producer after retries")
-                raise
+                logger.error("Failed to connect to Kafka producer after retries. Continuing without Kafka.")
+                return None
 
 consumer = create_kafka_consumer()
 producer = create_kafka_producer()

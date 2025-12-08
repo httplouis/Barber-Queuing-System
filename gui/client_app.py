@@ -5,23 +5,38 @@ from datetime import datetime
 import time
 import requests
 import threading
-from kafka import KafkaProducer, KafkaConsumer
-import json
-
-# Set up Kafka producer for event notifications
-producer = KafkaProducer(
-    bootstrap_servers=['localhost:9092'],
-    value_serializer=lambda v: json.dumps(v).encode('utf-8')
-)
-
-# Set up Kafka consumer to listen for queue updates
-consumer = KafkaConsumer(
-    'queue-updated',
-    bootstrap_servers=['localhost:9092'],
-    value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-    group_id='client-notification-group',
-    auto_offset_reset='latest'  # Only get new messages
-)
+try:
+    from kafka import KafkaProducer, KafkaConsumer
+    import json
+    
+    # Set up Kafka producer for event notifications (optional)
+    try:
+        producer = KafkaProducer(
+            bootstrap_servers=['localhost:9092'],
+            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+            api_version=(0, 10, 1)
+        )
+    except Exception as e:
+        print(f"Kafka producer not available: {e}")
+        producer = None
+    
+    # Set up Kafka consumer to listen for queue updates (optional)
+    try:
+        consumer = KafkaConsumer(
+            'queue-updated',
+            bootstrap_servers=['localhost:9092'],
+            value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+            group_id='client-notification-group',
+            auto_offset_reset='latest',
+            consumer_timeout_ms=1000
+        )
+    except Exception as e:
+        print(f"Kafka consumer not available: {e}")
+        consumer = None
+except ImportError:
+    producer = None
+    consumer = None
+    print("Kafka not available, continuing without it")
 
 # Global variables
 username_login_entry = None
@@ -36,8 +51,9 @@ access_token = None  # JWT access token
 refresh_token = None  # JWT refresh token
 
 # API endpoints
-API_BASE_URL = "http://localhost:8000"
-AUTH_API_URL = "http://localhost:8001"
+API_BASE_URL = "http://localhost:8000"  # Booking service
+AUTH_API_URL = "http://localhost:8001"  # Client service
+BARBER_API_URL = "http://localhost:8004"  # Barber service
 ADMIN_API_URL = "http://localhost:8005"
 ANALYTICS_API_URL = "http://localhost:8006"
 
@@ -56,14 +72,19 @@ ctk.set_appearance_mode("System")  # Changed from "Dark" to "System" for better 
 ctk.set_default_color_theme("dark-blue")  # Changed from "blue" to "dark-blue"
 
 app = ctk.CTk()
-app.geometry("800x700")  # Made window slightly wider
-app.title("✂️ Barber Master Pro")  # Updated app title
+app.geometry("900x750")  # Made window wider for better UI
+app.title("BarberQue - Customer App")
 
 # Custom font configurations
-TITLE_FONT = ctk.CTkFont(family="Helvetica", size=26, weight="bold")
-HEADER_FONT = ctk.CTkFont(family="Helvetica", size=18, weight="bold")
-NORMAL_FONT = ctk.CTkFont(family="Helvetica", size=14)
-BUTTON_FONT = ctk.CTkFont(family="Helvetica", size=14, weight="bold")
+TITLE_FONT = ctk.CTkFont(family="Segoe UI", size=28, weight="bold")
+HEADER_FONT = ctk.CTkFont(family="Segoe UI", size=20, weight="bold")
+NORMAL_FONT = ctk.CTkFont(family="Segoe UI", size=15)
+BUTTON_FONT = ctk.CTkFont(family="Segoe UI", size=15, weight="bold")
+
+# Brand colors
+PRIMARY_COLOR = "#1E88E5"
+SECONDARY_COLOR = "#43A047"
+ACCENT_COLOR = "#FF6F00"
 
 # Sample data (initial state before API connection)
 sample_barbers = [
@@ -88,6 +109,8 @@ sample_notifications = [
 
 # Function to listen for queue updates
 def listen_to_queue_updates():
+    if consumer is None:
+        return  # Skip if Kafka not available
     try:
         for message in consumer:
             event = message.value
@@ -116,9 +139,10 @@ def listen_to_queue_updates():
         print(f"Error in Kafka consumer: {e}")
         time.sleep(5)  # Wait before attempting to reconnect
 
-# Start the listener in a background thread
-listener_thread = threading.Thread(target=listen_to_queue_updates, daemon=True)
-listener_thread.start()
+# Start the listener in a background thread (only if Kafka is available)
+if consumer is not None:
+    listener_thread = threading.Thread(target=listen_to_queue_updates, daemon=True)
+    listener_thread.start()
 def refresh_appointments():
     pass
 # Function to switch between frames with animation
@@ -168,9 +192,45 @@ def setup_login_frame():
 
     frame = frames["login"]
 
+    # Enhanced Logo/Brand with professional design
+    logo_frame = ctk.CTkFrame(frame, fg_color="transparent")
+    logo_frame.pack(pady=(40, 20))
+    
+    # Main logo container with decorative background
+    logo_container = ctk.CTkFrame(
+        logo_frame, 
+        fg_color="#1a1a2e",
+        corner_radius=20,
+        border_width=2,
+        border_color=PRIMARY_COLOR
+    )
+    logo_container.pack(padx=20, pady=15)
+    
+    # Inner container for logo elements
+    logo_inner = ctk.CTkFrame(logo_container, fg_color="transparent")
+    logo_inner.pack(padx=20, pady=20)
+    
+    # Logo text only - clean and professional
+    logo_label = ctk.CTkLabel(
+        logo_inner,
+        text="BarberQue",
+        font=ctk.CTkFont(family="Segoe UI", size=48, weight="bold"),
+        text_color=PRIMARY_COLOR
+    )
+    logo_label.pack()
+    
+    # Tagline
+    tagline = ctk.CTkLabel(
+        logo_frame,
+        text="Premium Barber Services",
+        font=ctk.CTkFont(family="Segoe UI", size=14, weight="normal"),
+        text_color="#888888"
+    )
+    tagline.pack(pady=(5, 0))
+    
     # Title
-    title = ctk.CTkLabel(frame, text="✂️ Barber Master Pro", font=TITLE_FONT)
-    title.pack(pady=(50, 10))
+    title = ctk.CTkLabel(frame, text="Customer Portal", font=HEADER_FONT, text_color="gray")
+    title.pack(pady=(0, 10))
     
     subtitle = ctk.CTkLabel(frame, text="Login to Your Account", font=HEADER_FONT)
     subtitle.pack(pady=(0, 30))
@@ -243,11 +303,62 @@ def setup_register_frame():
 
     frame = frames["register"]
 
-    title = ctk.CTkLabel(frame, text="✂️ Barber Master Pro", font=TITLE_FONT)
-    title.pack(pady=(30, 10))
+    # Enhanced Logo/Brand with professional design
+    logo_frame = ctk.CTkFrame(frame, fg_color="transparent")
+    logo_frame.pack(pady=(30, 20))
+    
+    # Main logo container with decorative background
+    logo_container = ctk.CTkFrame(
+        logo_frame, 
+        fg_color="#1a1a2e",
+        corner_radius=20,
+        border_width=2,
+        border_color=PRIMARY_COLOR
+    )
+    logo_container.pack(padx=20, pady=15)
+    
+    # Inner container for logo elements
+    logo_inner = ctk.CTkFrame(logo_container, fg_color="transparent")
+    logo_inner.pack(padx=20, pady=20)
+    
+    # Logo text only - clean and professional
+    logo_label = ctk.CTkLabel(
+        logo_inner,
+        text="BarberQue",
+        font=ctk.CTkFont(family="Segoe UI", size=48, weight="bold"),
+        text_color=PRIMARY_COLOR
+    )
+    logo_label.pack()
+    
+    # Tagline
+    tagline = ctk.CTkLabel(
+        logo_frame,
+        text="Premium Barber Services",
+        font=ctk.CTkFont(family="Segoe UI", size=14, weight="normal"),
+        text_color="#888888"
+    )
+    tagline.pack(pady=(5, 0))
     
     subtitle = ctk.CTkLabel(frame, text="Create a New Account", font=HEADER_FONT)
     subtitle.pack(pady=(0, 20))
+    
+    # Info label
+    info_label = ctk.CTkLabel(
+        frame,
+        text="Or use existing: admin / admin123",
+        font=ctk.CTkFont(size=12),
+        text_color="gray"
+    )
+    info_label.pack(pady=(0, 20))
+    
+    # Info label for registration
+    info_label = ctk.CTkLabel(
+        frame,
+        text="Or use admin account: admin / admin123",
+        font=ctk.CTkFont(size=12),
+        text_color="gray"
+    )
+    info_label.pack(pady=(0, 20))
 
     username_label = ctk.CTkLabel(frame, text="Username:", font=NORMAL_FONT)
     username_label.pack(pady=(10, 5))
@@ -356,9 +467,9 @@ def setup_dashboard_frame():
     global welcome_label
     welcome_label = ctk.CTkLabel(
         frame,
-        text="Welcome! ✨",
+        text="Welcome to BarberQue! ✨",
         font=TITLE_FONT,
-        text_color="#4A90E2"
+        text_color=PRIMARY_COLOR
     )
     welcome_label.pack(pady=(50, 30))
     
@@ -573,6 +684,9 @@ def setup_booking_frame():
             response = requests.post(f"{API_BASE_URL}/booking/", json=payload, timeout=5)
             
             if response.status_code == 200:
+                if not response.text or not response.text.strip():
+                    show_status_message(status, "Service returned empty response", "red")
+                    return
                 data = response.json()
                 appointment_id = data.get("booking_id", "Unknown")
                 
@@ -624,11 +738,25 @@ def setup_booking_frame():
                     icon="check"
                 )
             else:
-                error_msg = response.json().get('detail', 'Unknown error')
+                try:
+                    if response.text and response.text.strip():
+                        error_msg = response.json().get('detail', 'Unknown error')
+                    else:
+                        error_msg = f"HTTP {response.status_code}: Service unavailable"
+                except:
+                    error_msg = f"HTTP {response.status_code}: Invalid response"
                 show_status_message(status, f"Booking failed: {error_msg}", "red")
         
         except requests.RequestException as e:
-            show_status_message(status, f"Connection error: {str(e)}", "red")
+            error_msg = str(e)
+            if "Expecting value" in error_msg or "char 0" in error_msg:
+                error_msg = "Service unavailable. Please check if all services are running."
+            show_status_message(status, f"Connection error: {error_msg}", "red")
+        except ValueError as e:
+            if "Expecting value" in str(e) or "char 0" in str(e):
+                show_status_message(status, "Service returned invalid response. Please try again.", "red")
+            else:
+                show_status_message(status, f"Error: {str(e)}", "red")
         except Exception as e:
             show_status_message(status, f"Error: {str(e)}", "red")
 
@@ -748,6 +876,9 @@ def setup_queue_frame():
             response = requests.post(f"{API_BASE_URL}/queue/", json=payload, timeout=5)
             
             if response.status_code == 200:
+                if not response.text or not response.text.strip():
+                    show_status_message(status, "Service returned empty response", "red")
+                    return
                 data = response.json()
                 queue_id = data.get("queue_id", f"Q{len(sample_queue) + 1:03d}")
                 position = data.get("position", len(sample_queue) + 1)
@@ -768,18 +899,22 @@ def setup_queue_frame():
                 }
                 sample_queue.append(queue_entry)
 
-                # Send Kafka Event
-                producer.send('queue-updated', {
-                    "event_type": "queue_status_changed",
-                    "data": {
-                        "client_id": user_id,
-                        "queue_id": queue_id,
-                        "status": "waiting",
-                        "position": position,
-                        "estimated_wait": wait_time
-                    }
-                })
-                producer.flush()
+                # Send Kafka Event (if available)
+                if producer:
+                    try:
+                        producer.send('queue-updated', {
+                            "event_type": "queue_status_changed",
+                            "data": {
+                                "client_id": user_id,
+                                "queue_id": queue_id,
+                                "status": "waiting",
+                                "position": position,
+                                "estimated_wait": wait_time
+                            }
+                        })
+                        producer.flush()
+                    except Exception as e:
+                        print(f"Kafka event failed: {e}")
 
                 # Add notification
                 notification_id = len(sample_notifications) + 1
@@ -818,11 +953,25 @@ def setup_queue_frame():
                 # Update queue display
                 update_queue_display()
             else:
-                error_msg = response.json().get('detail', 'Unknown error')
+                try:
+                    if response.text and response.text.strip():
+                        error_msg = response.json().get('detail', 'Unknown error')
+                    else:
+                        error_msg = f"HTTP {response.status_code}: Service unavailable"
+                except:
+                    error_msg = f"HTTP {response.status_code}: Invalid response"
                 show_status_message(status, f"Failed to join queue: {error_msg}", "red")
         
         except requests.RequestException as e:
-            show_status_message(status, f"Connection error: {str(e)}", "red")
+            error_msg = str(e)
+            if "Expecting value" in error_msg or "char 0" in error_msg:
+                error_msg = "Service unavailable. Please check if all services are running."
+            show_status_message(status, f"Connection error: {error_msg}", "red")
+        except ValueError as e:
+            if "Expecting value" in str(e) or "char 0" in str(e):
+                show_status_message(status, "Service returned invalid response. Please try again.", "red")
+            else:
+                show_status_message(status, f"Error: {str(e)}", "red")
         except Exception as e:
             show_status_message(status, f"Error: {str(e)}", "red")
 
@@ -1274,15 +1423,21 @@ def get_barbers_and_services():
     
     try:
         # Get barbers
-        response = requests.get(f"{API_BASE_URL}/barbers/", timeout=5)
+        response = requests.get(f"{BARBER_API_URL}/barbers/", timeout=5)
         if response.status_code == 200:
-            barbers_data = response.json()
-            if barbers_data and "barbers" in barbers_data:
-                sample_barbers = barbers_data["barbers"]
+            if not response.text or not response.text.strip():
+                print("Barber service returned empty response")
+            else:
+                barbers_data = response.json()
+                if barbers_data and "barbers" in barbers_data:
+                    sample_barbers = barbers_data["barbers"]
         
         # Get services
-        response = requests.get(f"{API_BASE_URL}/services/", timeout=5)
+        response = requests.get(f"{BARBER_API_URL}/services/", timeout=5)
         if response.status_code == 200:
+            if not response.text or not response.text.strip():
+                print("Service endpoint returned empty response")
+                return
             services_data = response.json()
             if services_data and "services" in services_data:
                 sample_services = services_data["services"]

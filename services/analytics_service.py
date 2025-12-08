@@ -2,7 +2,7 @@
 import json
 import requests
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, Depends, Query, status
+from fastapi import FastAPI, HTTPException, Depends, Query, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timedelta
@@ -146,6 +146,7 @@ async def health_check():
 @app.get("/analytics/popular-services")
 @limiter.limit("60/minute")
 async def get_popular_services(
+    request: Request,
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     admin: Dict = Depends(verify_admin)
@@ -212,7 +213,7 @@ async def get_popular_services(
 
 @app.get("/analytics/barber-performance")
 @limiter.limit("60/minute")
-async def get_barber_performance(admin: Dict = Depends(verify_admin)):
+async def get_barber_performance(request: Request, admin: Dict = Depends(verify_admin)):
     """
     Get barber performance statistics.
     
@@ -277,6 +278,7 @@ async def get_barber_performance(admin: Dict = Depends(verify_admin)):
 @app.get("/analytics/revenue")
 @limiter.limit("60/minute")
 async def get_revenue_stats(
+    request: Request,
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     admin: Dict = Depends(verify_admin)
@@ -369,7 +371,7 @@ async def get_revenue_stats(
 
 @app.get("/analytics/queue-stats")
 @limiter.limit("60/minute")
-async def get_queue_stats(admin: Dict = Depends(verify_admin)):
+async def get_queue_stats(request: Request, admin: Dict = Depends(verify_admin)):
     """
     Get queue statistics.
     
@@ -421,6 +423,7 @@ async def get_queue_stats(admin: Dict = Depends(verify_admin)):
 @app.get("/analytics/daily-bookings")
 @limiter.limit("60/minute")
 async def get_daily_bookings(
+    request: Request,
     days: int = Query(30, ge=1, le=365),
     admin: Dict = Depends(verify_admin)
 ):

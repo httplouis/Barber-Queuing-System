@@ -2,7 +2,7 @@
 import json
 import uvicorn
 from typing import Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field, validator
@@ -72,8 +72,8 @@ def create_kafka_producer():
             if attempt < max_retries - 1:
                 time.sleep(2)
             else:
-                logger.error("Failed to connect to Kafka after retries")
-                raise
+                logger.error("Failed to connect to Kafka after retries. Continuing without Kafka.")
+                return None
 
 producer = create_kafka_producer()
 
@@ -178,7 +178,7 @@ async def health_check():
 # Client endpoints
 @app.post("/register/", response_model=Dict[str, Any])
 @limiter.limit("10/minute")
-async def register_client(client: ClientRegister):
+async def register_client(request: Request, client: ClientRegister):
     """
     Register a new client.
     
@@ -188,6 +188,7 @@ async def register_client(client: ClientRegister):
     Returns:
         Registration confirmation with client ID
     """
+    global clients_db, client_id_counter
     try:
         # Sanitize inputs
         username = sanitize_input(client.username)
@@ -237,19 +238,20 @@ async def register_client(client: ClientRegister):
         save_clients()
         
         # Send event for client registration
-        try:
-            producer.send('client-logged-in', {
-                "event_type": "client_registered",
-                "data": {
-                    "client_id": client_id,
-                    "username": username,
-                    "name": name,
-                    "timestamp": datetime.now().isoformat()
-                }
-            })
-            producer.flush()
-        except KafkaError as e:
-            logger.error(f"Failed to send Kafka message: {e}")
+        if producer:
+            try:
+                producer.send('client-logged-in', {
+                    "event_type": "client_registered",
+                    "data": {
+                        "client_id": client_id,
+                        "username": username,
+                        "name": name,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                })
+                producer.flush()
+            except KafkaError as e:
+                logger.error(f"Failed to send Kafka message: {e}")
         
         logger.info(f"Client {client_id} registered successfully")
         
@@ -272,7 +274,7 @@ async def register_client(client: ClientRegister):
 
 @app.post("/login/", response_model=TokenResponse)
 @limiter.limit("10/minute")
-async def login_client(login: ClientLogin):
+async def login_client(request: Request, login: ClientLogin):
     """
     Authenticate a client and return JWT tokens.
     
@@ -322,19 +324,20 @@ async def login_client(login: ClientLogin):
         refresh_token = create_refresh_token(token_data)
         
         # Send login event
-        try:
-            producer.send('client-logged-in', {
-                "event_type": "client_logged_in",
-                "data": {
-                    "client_id": client_id,
-                    "username": client.get("username"),
-                    "name": client.get("name"),
-                    "timestamp": datetime.now().isoformat()
-                }
-            })
-            producer.flush()
-        except KafkaError as e:
-            logger.error(f"Failed to send Kafka message: {e}")
+        if producer:
+            try:
+                producer.send('client-logged-in', {
+                    "event_type": "client_logged_in",
+                    "data": {
+                        "client_id": client_id,
+                        "username": client.get("username"),
+                        "name": client.get("name"),
+                        "timestamp": datetime.now().isoformat()
+                    }
+                })
+                producer.flush()
+            except KafkaError as e:
+                logger.error(f"Failed to send Kafka message: {e}")
         
         logger.info(f"Client {client_id} logged in successfully")
         
@@ -482,7 +485,8 @@ async def shutdown_event():
     """Handle graceful shutdown."""
     logger.info("Shutting down client service")
     save_clients()
-    producer.close()
+    if producer:
+        producer.close()
 
 # Run the service
 if __name__ == "__main__":

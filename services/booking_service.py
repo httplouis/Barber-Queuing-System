@@ -72,8 +72,8 @@ def create_kafka_producer():
             if attempt < max_retries - 1:
                 time.sleep(2)
             else:
-                logger.error("Failed to connect to Kafka after retries")
-                raise
+                logger.error("Failed to connect to Kafka after retries. Continuing without Kafka.")
+                return None
 
 producer = create_kafka_producer()
 
@@ -212,14 +212,15 @@ async def add_to_queue(request: QueueRequest):
         save_queue()
         
         # Send message to queue-created topic
-        try:
-            producer.send('booking-created', {
-                "event_type": "queue_created",
-                "data": queue_entry
-            })
-            producer.flush()
-        except KafkaError as e:
-            logger.error(f"Failed to send Kafka message: {e}")
+        if producer:
+            try:
+                producer.send('booking-created', {
+                    "event_type": "queue_created",
+                    "data": queue_entry
+                })
+                producer.flush()
+            except KafkaError as e:
+                logger.error(f"Failed to send Kafka message: {e}")
         
         logger.info(f"Client {client_id} added to queue with ID {queue_id}")
         return {
@@ -356,14 +357,15 @@ async def create_booking(request: BookingRequest):
         save_bookings()
         
         # Send message to booking-created topic
-        try:
-            producer.send('booking-created', {
-                "event_type": "booking_created",
-                "data": booking
-            })
-            producer.flush()
-        except KafkaError as e:
-            logger.error(f"Failed to send Kafka message: {e}")
+        if producer:
+            try:
+                producer.send('booking-created', {
+                    "event_type": "booking_created",
+                    "data": booking
+                })
+                producer.flush()
+            except KafkaError as e:
+                logger.error(f"Failed to send Kafka message: {e}")
         
         logger.info(f"Booking {booking_id} created successfully")
         return {

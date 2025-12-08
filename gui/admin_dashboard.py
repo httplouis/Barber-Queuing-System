@@ -22,14 +22,21 @@ ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("dark-blue")
 
 app = ctk.CTk()
-app.geometry("1200x800")
-app.title("Admin Dashboard - Barber Queuing System")
+app.geometry("1400x900")
+app.title("BarberQue - Admin Dashboard")
 
 # Custom fonts
-TITLE_FONT = ctk.CTkFont(family="Helvetica", size=28, weight="bold")
-HEADER_FONT = ctk.CTkFont(family="Helvetica", size=20, weight="bold")
-NORMAL_FONT = ctk.CTkFont(family="Helvetica", size=14)
-BUTTON_FONT = ctk.CTkFont(family="Helvetica", size=14, weight="bold")
+TITLE_FONT = ctk.CTkFont(family="Segoe UI", size=32, weight="bold")
+HEADER_FONT = ctk.CTkFont(family="Segoe UI", size=22, weight="bold")
+NORMAL_FONT = ctk.CTkFont(family="Segoe UI", size=15)
+BUTTON_FONT = ctk.CTkFont(family="Segoe UI", size=15, weight="bold")
+SUBTITLE_FONT = ctk.CTkFont(family="Segoe UI", size=18)
+
+# Brand colors
+PRIMARY_COLOR = "#1E88E5"  # Modern blue
+SECONDARY_COLOR = "#43A047"  # Green for success
+ACCENT_COLOR = "#FF6F00"  # Orange for highlights
+DANGER_COLOR = "#E53935"  # Red for warnings
 
 # Global variables
 current_admin = None
@@ -60,20 +67,50 @@ def setup_login_frame():
     frame = ctk.CTkFrame(app)
     frame.pack(fill="both", expand=True)
     
-    title = ctk.CTkLabel(
-        frame,
-        text="🔐 Admin Dashboard",
-        font=TITLE_FONT,
-        text_color="#4A90E2"
-    )
-    title.pack(pady=(100, 20))
+    # Enhanced Logo/Brand section with professional design
+    logo_frame = ctk.CTkFrame(frame, fg_color="transparent")
+    logo_frame.pack(pady=(60, 30))
     
+    # Main logo container with decorative background
+    logo_container = ctk.CTkFrame(
+        logo_frame, 
+        fg_color="#1a1a2e",
+        corner_radius=25,
+        border_width=3,
+        border_color=PRIMARY_COLOR
+    )
+    logo_container.pack(padx=30, pady=20)
+    
+    # Inner container for logo elements
+    logo_inner = ctk.CTkFrame(logo_container, fg_color="transparent")
+    logo_inner.pack(padx=25, pady=25)
+    
+    # Logo text only - clean and professional
+    logo_label = ctk.CTkLabel(
+        logo_inner,
+        text="BarberQue",
+        font=ctk.CTkFont(family="Segoe UI", size=56, weight="bold"),
+        text_color=PRIMARY_COLOR
+    )
+    logo_label.pack()
+    
+    # Tagline
+    tagline = ctk.CTkLabel(
+        logo_frame,
+        text="Premium Barber Services",
+        font=ctk.CTkFont(family="Segoe UI", size=16, weight="normal"),
+        text_color="#888888"
+    )
+    tagline.pack(pady=(8, 0))
+    
+    # Subtitle
     subtitle = ctk.CTkLabel(
         frame,
-        text="Administrator Login",
-        font=HEADER_FONT
+        text="Admin Dashboard",
+        font=SUBTITLE_FONT,
+        text_color="#aaaaaa"
     )
-    subtitle.pack(pady=(0, 40))
+    subtitle.pack(pady=(15, 50))
     
     # Username
     username_label = ctk.CTkLabel(frame, text="Username:", font=NORMAL_FONT)
@@ -137,13 +174,14 @@ def setup_login_frame():
     
     login_button = ctk.CTkButton(
         frame,
-        text="Login",
+        text="🔓 Login",
         command=login,
         width=350,
-        height=45,
+        height=50,
         font=BUTTON_FONT,
-        fg_color="#4A90E2",
-        hover_color="#357ABD"
+        fg_color=PRIMARY_COLOR,
+        hover_color="#1565C0",
+        corner_radius=10
     )
     login_button.pack(pady=(10, 0))
     
@@ -163,10 +201,10 @@ def setup_dashboard():
     tabview = ctk.CTkTabview(app, width=1180, height=750)
     tabview.pack(fill="both", expand=True, padx=10, pady=10)
     
-    # Create tabs
+    # Create tabs with better styling
     tabs["overview"] = tabview.add("📊 Overview")
-    tabs["queue"] = tabview.add("⏱️ Queue Management")
-    tabs["barbers"] = tabview.add("👨‍💼 Barber Management")
+    tabs["queue"] = tabview.add("⏱️ Queue")
+    tabs["barbers"] = tabview.add("✂️ Barbers")
     tabs["bookings"] = tabview.add("📅 Bookings")
     tabs["users"] = tabview.add("👥 Users")
     tabs["analytics"] = tabview.add("📈 Analytics")
@@ -182,14 +220,31 @@ def setup_overview_tab():
     """Setup overview/dashboard tab."""
     frame = tabs["overview"]
     
-    # Title
+    # Header with logo
+    header_frame = ctk.CTkFrame(frame, fg_color="transparent")
+    header_frame.pack(pady=(20, 30), fill="x", padx=20)
+    
     title = ctk.CTkLabel(
-        frame,
-        text="Dashboard Overview",
+        header_frame,
+        text="✂️ BarberQue Dashboard",
         font=TITLE_FONT,
-        text_color="#4A90E2"
+        text_color=PRIMARY_COLOR
     )
-    title.pack(pady=(20, 30))
+    title.pack(side="left")
+    
+    # Refresh button
+    refresh_btn = ctk.CTkButton(
+        header_frame,
+        text="🔄 Refresh",
+        command=lambda: refresh_stats(),
+        width=120,
+        height=35,
+        font=NORMAL_FONT,
+        fg_color=SECONDARY_COLOR,
+        hover_color="#2E7D32",
+        corner_radius=8
+    )
+    refresh_btn.pack(side="right")
     
     # Stats container
     stats_container = ctk.CTkFrame(frame, fg_color="transparent")
@@ -198,44 +253,58 @@ def setup_overview_tab():
     # Stats cards
     stats_cards = {}
     
-    def create_stat_card(parent, row, col, title_text, value_text, color="#4A90E2"):
-        """Create a statistics card."""
-        card = ctk.CTkFrame(parent, width=250, height=150, corner_radius=15)
-        card.grid(row=row, column=col, padx=15, pady=15, sticky="nsew")
+    def create_stat_card(parent, row, col, title_text, value_text, icon="", color=PRIMARY_COLOR):
+        """Create a modern statistics card."""
+        card = ctk.CTkFrame(parent, width=280, height=180, corner_radius=20, 
+                           fg_color=("#F5F5F5", "#1E1E1E"), border_width=1)
+        card.grid(row=row, column=col, padx=20, pady=20, sticky="nsew")
+        
+        # Icon and title
+        top_frame = ctk.CTkFrame(card, fg_color="transparent")
+        top_frame.pack(pady=(25, 10), fill="x", padx=20)
+        
+        if icon:
+            icon_label = ctk.CTkLabel(
+                top_frame,
+                text=icon,
+                font=ctk.CTkFont(size=28)
+            )
+            icon_label.pack(side="left")
         
         title_label = ctk.CTkLabel(
-            card,
+            top_frame,
             text=title_text,
             font=NORMAL_FONT,
             text_color="gray"
         )
-        title_label.pack(pady=(20, 10))
+        title_label.pack(side="left", padx=(10, 0))
         
+        # Value
         value_label = ctk.CTkLabel(
             card,
             text=value_text,
-            font=ctk.CTkFont(size=32, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=42, weight="bold"),
             text_color=color
         )
         value_label.pack()
         
         return value_label
     
-    # Create stat cards
+    # Create stat cards with icons
     stats_cards["total_bookings"] = create_stat_card(
-        stats_container, 0, 0, "Total Bookings", "0", "#4A90E2"
+        stats_container, 0, 0, "Total Bookings", "0", "📅", PRIMARY_COLOR
     )
     stats_cards["queue_length"] = create_stat_card(
-        stats_container, 0, 1, "Queue Length", "0", "#10B981"
+        stats_container, 0, 1, "Queue Length", "0", "⏱️", SECONDARY_COLOR
     )
     stats_cards["total_clients"] = create_stat_card(
-        stats_container, 0, 2, "Total Clients", "0", "#F59E0B"
+        stats_container, 0, 2, "Total Clients", "0", "👥", ACCENT_COLOR
     )
     stats_cards["total_barbers"] = create_stat_card(
-        stats_container, 0, 3, "Active Barbers", "0", "#EF4444"
+        stats_container, 0, 3, "Active Barbers", "0", "✂️", DANGER_COLOR
     )
     
-    # Refresh button
+    # Refresh stats function (moved before button creation)
     def refresh_stats():
         """Refresh dashboard statistics."""
         try:
@@ -260,15 +329,6 @@ def setup_overview_tab():
                 )
         except Exception as e:
             print(f"Error refreshing stats: {e}")
-    
-    refresh_button = ctk.CTkButton(
-        frame,
-        text="🔄 Refresh Stats",
-        command=refresh_stats,
-        width=200,
-        font=BUTTON_FONT
-    )
-    refresh_button.pack(pady=20)
     
     # Initial refresh
     refresh_stats()

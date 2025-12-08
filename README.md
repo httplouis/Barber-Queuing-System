@@ -1,107 +1,95 @@
-# ✂️ Barber Queuing System - Enhanced Edition
+# ✂️ BarberQue - Barber Shop Queuing System
 
-## Complete Production-Ready Microservices-Based Queue Management System
+A modern, production-ready microservices-based barber shop queue management system built with FastAPI, CustomTkinter, and Kafka.
 
-This is a fully functional, production-ready barber shop queuing system built with FastAPI, Kafka, CustomTkinter, and modern best practices.
+![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
----
+## 🎯 Overview
+
+BarberQue is a comprehensive queue management system designed for barber shops, featuring:
+- **Real-time queue management** with position tracking
+- **Appointment booking system** with calendar integration
+- **Admin dashboard** for comprehensive management
+- **Customer mobile-friendly interface**
+- **Analytics and reporting** for business insights
+- **JWT-based authentication** for secure access
 
 ## 🏗️ Architecture
 
-### Microservices:
-- **Booking Service** (Port 8000) - Handles appointments and queue entries with persistence
+### Microservices Architecture
+
+The system is built using a microservices architecture with the following services:
+
+- **Booking Service** (Port 8000) - Handles appointments and queue entries
 - **Client Service** (Port 8001) - User authentication with JWT tokens
 - **Feedback Service** (Port 8002) - Customer feedback management
-- **Notification Service** (Port 8003) - Real-time notifications via FastAPI
+- **Notification Service** (Port 8003) - Real-time notifications
 - **Barber Service** (Port 8004) - Barber and service management
 - **Admin Service** (Port 8005) - Administrative operations
 - **Analytics Service** (Port 8006) - Analytics and reporting
-- **Queue Service** - Kafka consumer for queue processing
+- **Queue Service** - Background queue processing
 
-### Client Applications:
-- **GUI Client** (`client_app.py`) - Modern CustomTkinter interface with JWT authentication
-- **Admin Dashboard** (`admin_dashboard.py`) - Comprehensive admin interface
+### Client Applications
 
----
+- **Customer App** (`gui/client_app.py`) - Modern GUI for customers
+- **Admin Dashboard** (`gui/admin_dashboard.py`) - Comprehensive admin interface
 
-## ✨ New Features (Enhanced Edition)
+## ✨ Features
 
-### 🔐 Security
-- **JWT Authentication** - Secure token-based authentication
-- **Password Hashing** - Bcrypt password hashing
-- **Rate Limiting** - API rate limiting to prevent abuse
-- **Input Sanitization** - Protection against injection attacks
-- **CORS Configuration** - Proper cross-origin resource sharing
+### Customer Features
+- ✅ User Registration & Login with JWT
+- ✅ Book Appointments
+- ✅ Join Queue (Walk-ins)
+- ✅ Real-time Queue Updates
+- ✅ Queue Position Progress Bar
+- ✅ Notifications
+- ✅ Feedback System
+- ✅ View & Cancel Appointments
 
-### 💾 Data Persistence
-- **JSON File Storage** - All data persists across service restarts
-- **Atomic Writes** - Prevents data corruption
-- **Auto-save** - Automatic data saving on changes
-- **Data Directory** - Organized data storage in `data/` folder
+### Admin Features
+- ✅ Dashboard Overview with Real-time Statistics
+- ✅ Queue Management
+- ✅ Barber Management
+- ✅ Booking Management
+- ✅ User Management
+- ✅ Analytics & Reports
+- ✅ Revenue Tracking
 
-### 📊 Analytics & Reporting
-- **Popular Services** - Track most booked services
-- **Barber Performance** - Ratings and booking statistics
-- **Revenue Reports** - Financial analytics
-- **Daily Bookings** - Booking trends over time
-- **Queue Statistics** - Real-time queue metrics
-
-### 👨‍💼 Admin Dashboard
-- **Dashboard Overview** - Real-time statistics
-- **Queue Management** - View and manage queue
-- **Barber Management** - Add/edit barbers
-- **Booking Management** - View all bookings
-- **User Management** - Manage client accounts
-- **Analytics View** - Comprehensive reports
-
-### 🎨 UI/UX Enhancements
-- **Modern Design** - Improved visual appearance
-- **Progress Bars** - Queue position visualization
-- **Icons & Emojis** - Better visual feedback
-- **Smooth Transitions** - Frame switching animations
-- **Loading States** - Better user feedback
-- **Toast Notifications** - Success/error messages
-
-### 🔧 Code Quality
-- **Type Hints** - Full type annotation
-- **Comprehensive Docstrings** - Google-style documentation
-- **Structured Logging** - File and console logging
-- **Error Handling** - Graceful error management
-- **Health Checks** - Service health monitoring
-- **Retry Logic** - Automatic connection retries
-
-### 🧪 Testing
-- **Unit Tests** - Service endpoint tests
-- **Integration Tests** - End-to-end testing
-- **Test Fixtures** - Reusable test data
-
----
+### System Features
+- ✅ Data Persistence (JSON-based)
+- ✅ JWT Authentication
+- ✅ Rate Limiting
+- ✅ Structured Logging
+- ✅ Health Checks
+- ✅ Error Handling
+- ✅ Retry Logic
+- ✅ CORS Configuration
 
 ## 📋 Prerequisites
 
 1. **Python 3.8+**
-2. **Kafka** running on `localhost:9092`
+2. **Kafka** (optional - system works without it)
 3. **Required Python packages:**
    ```bash
    pip install -r requirements.txt
    ```
 
----
-
 ## 🚀 Quick Start
 
 ### Option 1: Use the Batch Script (Windows)
 ```bash
-start_all_services.bat
+scripts/start_all_services.bat
 ```
 
-This will start all services in separate windows. Then run:
+Then run the GUI applications:
 ```bash
-# Client Application
-python client_app.py
+# Customer Application
+python gui/client_app.py
 
 # Admin Dashboard
-python admin_dashboard.py
+python gui/admin_dashboard.py
 ```
 
 ### Option 2: Manual Start
@@ -111,43 +99,41 @@ python admin_dashboard.py
 pip install -r requirements.txt
 ```
 
-**2. Start Kafka** (if not already running)
-
-**3. Start each service in separate terminals:**
-
+**2. Start Services:**
 ```bash
 # Terminal 1 - Booking Service
-python booking_service.py
+python services/booking_service.py
 
 # Terminal 2 - Client Service
-python client_service.py
+python services/client_service.py
 
 # Terminal 3 - Feedback Service
-python feedback_service.py
+python services/feedback_service.py
 
 # Terminal 4 - Notification Service
-python notification_service.py
+python services/notification_service.py
 
 # Terminal 5 - Barber Service
-python barber_service.py
+python services/barber_service.py
 
 # Terminal 6 - Admin Service
-python admin_service.py
+python services/admin_service.py
 
 # Terminal 7 - Analytics Service
-python analytics_service.py
+python services/analytics_service.py
 
-# Terminal 8 - Queue Service
-python queue_service.py
-
-# Terminal 9 - Client GUI
-python client_app.py
-
-# Terminal 10 - Admin Dashboard
-python admin_dashboard.py
+# Terminal 8 - Queue Service (optional)
+python services/queue_service.py
 ```
 
----
+**3. Start GUI Applications:**
+```bash
+# Customer App
+python gui/client_app.py
+
+# Admin Dashboard
+python gui/admin_dashboard.py
+```
 
 ## 🔑 Default Credentials
 
@@ -156,8 +142,6 @@ python admin_dashboard.py
 - **Password:** `admin123`
 
 This account is automatically created on first run.
-
----
 
 ## 📡 API Endpoints
 
@@ -215,75 +199,34 @@ This account is automatically created on first run.
 - `GET /analytics/queue-stats` - Queue statistics (admin only)
 - `GET /analytics/daily-bookings` - Daily bookings (admin only)
 
----
-
-## 🎯 Features
-
-### Client Features
-✅ User Registration & Login with JWT  
-✅ Book Appointments  
-✅ Join Queue (Walk-ins)  
-✅ Real-time Queue Updates  
-✅ Queue Position Progress Bar  
-✅ Notifications  
-✅ Feedback System  
-✅ View Appointments  
-✅ Cancel Appointments  
-
-### Admin Features
-✅ Dashboard Overview  
-✅ Queue Management  
-✅ Barber Management  
-✅ Booking Management  
-✅ User Management  
-✅ Analytics & Reports  
-✅ Real-time Statistics  
-
-### System Features
-✅ Data Persistence  
-✅ JWT Authentication  
-✅ Rate Limiting  
-✅ Structured Logging  
-✅ Health Checks  
-✅ Error Handling  
-✅ Retry Logic  
-
----
-
-## 🔄 Kafka Topics
-
-- `booking-created` - New bookings/queue entries
-- `queue-updated` - Queue status changes
-- `feedback-submitted` - Feedback submissions
-- `client-logged-in` - Login events
-- `notification-updated` - Notification events
-- `barber-feedback` - Barber feedback
-
----
-
-## 📁 File Structure
+## 📁 Project Structure
 
 ```
-lastna/
-├── booking_service.py          # Booking & Queue API
-├── client_service.py           # Authentication API
-├── feedback_service.py         # Feedback API
-├── notification_service.py     # Notifications API
-├── barber_service.py           # Barber & Services API
-├── admin_service.py            # Admin API
-├── analytics_service.py        # Analytics API
-├── queue_service.py            # Queue Processor
-├── client_app.py               # GUI Client
-├── admin_dashboard.py          # Admin Dashboard
-├── start_all_services.bat      # Startup script
-├── requirements.txt             # Dependencies
-├── utils/                      # Utility modules
-│   ├── config.py               # Configuration
-│   ├── data_persistence.py     # Data persistence
-│   ├── logger_config.py        # Logging setup
-│   ├── security.py             # Security utilities
-│   └── models.py               # Shared models
-├── data/                       # Data storage (auto-created)
+Barber-Queuing-System/
+├── services/                  # Microservices
+│   ├── booking_service.py
+│   ├── client_service.py
+│   ├── feedback_service.py
+│   ├── notification_service.py
+│   ├── barber_service.py
+│   ├── admin_service.py
+│   ├── analytics_service.py
+│   └── queue_service.py
+├── gui/                      # GUI Applications
+│   ├── client_app.py
+│   └── admin_dashboard.py
+├── scripts/                  # Utility Scripts
+│   ├── start_all_services.bat
+│   ├── capture_gui.py
+│   ├── simple_screenshot.py
+│   └── take_screenshots.py
+├── utils/                    # Utility Modules
+│   ├── config.py
+│   ├── data_persistence.py
+│   ├── logger_config.py
+│   ├── security.py
+│   └── models.py
+├── data/                     # Data Storage (auto-created)
 │   ├── bookings.json
 │   ├── clients.json
 │   ├── feedback.json
@@ -291,14 +234,24 @@ lastna/
 │   ├── services.json
 │   ├── queue.json
 │   └── notifications.json
-├── logs/                       # Log files (auto-created)
-└── tests/                      # Test suite
-    ├── conftest.py
-    ├── test_client_service.py
-    └── test_booking_service.py
+├── logs/                     # Log Files (auto-created)
+├── tests/                    # Test Suite
+│   ├── conftest.py
+│   ├── test_client_service.py
+│   └── test_booking_service.py
+├── requirements.txt          # Python Dependencies
+└── README.md                 # This File
 ```
 
----
+## 🔄 Kafka Topics (Optional)
+
+The system can work without Kafka, but supports the following topics for enhanced functionality:
+- `booking-created` - New bookings/queue entries
+- `queue-updated` - Queue status changes
+- `feedback-submitted` - Feedback submissions
+- `client-logged-in` - Login events
+- `notification-updated` - Notification events
+- `barber-feedback` - Barber feedback
 
 ## 🧪 Running Tests
 
@@ -310,8 +263,6 @@ pip install pytest pytest-asyncio httpx
 pytest tests/
 ```
 
----
-
 ## 📝 Configuration
 
 Configuration is managed through environment variables and `utils/config.py`:
@@ -322,15 +273,13 @@ Configuration is managed through environment variables and `utils/config.py`:
 - `JWT_SECRET_KEY` - JWT secret key (change in production!)
 - `LOG_LEVEL` - Logging level (default: INFO)
 
----
-
 ## 🐛 Troubleshooting
 
 **Issue: Services won't start**
-- Check if Kafka is running on `localhost:9092`
-- Verify all Python packages are installed: `pip install -r requirements.txt`
 - Check if ports 8000-8006 are available
+- Verify all Python packages are installed: `pip install -r requirements.txt`
 - Check logs in `logs/` directory
+- Note: Kafka is optional - services will work without it
 
 **Issue: Authentication fails**
 - Verify JWT_SECRET_KEY is set (if using custom)
@@ -344,17 +293,9 @@ Configuration is managed through environment variables and `utils/config.py`:
 
 **Issue: Client app can't connect**
 - Ensure all services are running
-- Check service URLs in `client_app.py`
+- Check service URLs in `gui/client_app.py`
 - Verify network connectivity
 - Check firewall settings
-
-**Issue: Queue not updating**
-- Verify queue_service.py is running
-- Check Kafka connection
-- Ensure booking service is sending events
-- Check queue service logs
-
----
 
 ## 🔒 Security Notes
 
@@ -365,8 +306,6 @@ Configuration is managed through environment variables and `utils/config.py`:
 - **Review CORS settings** for production
 - **Secure data directory** permissions
 
----
-
 ## 📊 Data Persistence
 
 All data is automatically saved to JSON files in the `data/` directory:
@@ -375,11 +314,10 @@ All data is automatically saved to JSON files in the `data/` directory:
 - Automatic backup on changes
 - Easy to backup and restore
 
----
-
 ## 🚀 Production Deployment
 
 For production deployment:
+
 1. Set environment variables for configuration
 2. Use a production WSGI server (e.g., Gunicorn)
 3. Set up proper database (PostgreSQL/MySQL)
@@ -387,11 +325,9 @@ For production deployment:
 5. Set up monitoring and logging
 6. Use process manager (systemd, supervisor)
 7. Configure reverse proxy (Nginx)
-8. Set up Kafka cluster
+8. Set up Kafka cluster (optional)
 9. Enable authentication for all services
 10. Configure backup strategy
-
----
 
 ## ✅ Status: PRODUCTION-READY
 
@@ -407,13 +343,9 @@ This system is fully enhanced with:
 - ✅ Health checks
 - ✅ Testing framework
 
----
-
 ## 📄 License
 
 This project is provided as-is for educational and commercial use.
-
----
 
 ## 🤝 Contributing
 
@@ -423,17 +355,16 @@ Contributions are welcome! Please ensure:
 - Documentation is updated
 - All services remain functional
 
----
-
 ## 📞 Support
 
 For issues or questions:
 1. Check the troubleshooting section
 2. Review service logs in `logs/` directory
 3. Verify all prerequisites are met
-4. Check Kafka connectivity
+4. Check service connectivity
 
 ---
 
 **Version:** 2.0.0 (Enhanced Edition)  
-**Last Updated:** 2024
+**Last Updated:** 2024  
+**Repository:** [https://github.com/httplouis/Barber-Queuing-System](https://github.com/httplouis/Barber-Queuing-System)

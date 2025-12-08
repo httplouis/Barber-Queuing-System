@@ -2,7 +2,7 @@
 import json
 import requests
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
@@ -92,7 +92,7 @@ async def health_check():
 # Admin endpoints
 @app.get("/dashboard/stats")
 @limiter.limit("60/minute")
-async def get_dashboard_stats(admin: Dict = Depends(verify_admin)):
+async def get_dashboard_stats(request: Request, admin: Dict = Depends(verify_admin)):
     """
     Get dashboard statistics for admin.
     
@@ -204,7 +204,7 @@ async def get_dashboard_stats(admin: Dict = Depends(verify_admin)):
 
 @app.get("/queue/manage")
 @limiter.limit("60/minute")
-async def manage_queue(admin: Dict = Depends(verify_admin)):
+async def manage_queue(request: Request, admin: Dict = Depends(verify_admin)):
     """
     Get queue management information.
     
@@ -237,6 +237,7 @@ async def manage_queue(admin: Dict = Depends(verify_admin)):
 @app.delete("/queue/{queue_id}")
 @limiter.limit("30/minute")
 async def remove_from_queue(
+    request: Request,
     queue_id: str,
     admin: Dict = Depends(verify_admin)
 ):
@@ -257,7 +258,7 @@ async def remove_from_queue(
 
 @app.get("/bookings/all")
 @limiter.limit("60/minute")
-async def get_all_bookings_admin(admin: Dict = Depends(verify_admin)):
+async def get_all_bookings_admin(request: Request, admin: Dict = Depends(verify_admin)):
     """
     Get all bookings (admin view).
     
@@ -289,6 +290,7 @@ async def get_all_bookings_admin(admin: Dict = Depends(verify_admin)):
 @app.delete("/bookings/{booking_id}")
 @limiter.limit("30/minute")
 async def cancel_booking_admin(
+    request: Request,
     booking_id: str,
     admin: Dict = Depends(verify_admin)
 ):
@@ -324,7 +326,7 @@ async def cancel_booking_admin(
 
 @app.get("/clients/all")
 @limiter.limit("60/minute")
-async def get_all_clients_admin(admin: Dict = Depends(verify_admin)):
+async def get_all_clients_admin(request: Request, admin: Dict = Depends(verify_admin)):
     """
     Get all clients (admin only).
     
@@ -357,6 +359,7 @@ async def get_all_clients_admin(admin: Dict = Depends(verify_admin)):
 @app.put("/clients/{client_id}/disable")
 @limiter.limit("30/minute")
 async def disable_client(
+    request: Request,
     client_id: str,
     admin: Dict = Depends(verify_admin)
 ):
